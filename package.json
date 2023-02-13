@@ -1,0 +1,17 @@
+{
+    "name": "make-fake",
+    "version": "1.0.0",
+    "description": "",
+    "main": "index.mjs",
+    "scripts": {
+        "start": "NODE_OPTIONS='--max_old_space_size=8192' node index.mjs",
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "author": "",
+    "license": "ISC",
+    "dependencies": {
+        "@faker-js/faker": "^7.6.0",
+        "csv-string": "^4.1.1",
+        "lodash": "^4.17.21"
+    }
+}
