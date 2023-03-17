@@ -3,14 +3,15 @@ import { faker } from "@faker-js/faker";
 import { stringify } from "csv-string";
 import sample from "lodash/sample.js";
 import chunk from "lodash/chunk.js";
+import range from "lodash/range.js";
 
 // Set this to 1/10 to only generate a 10th the number of rows.
-const scale = 1 / 1;
+const scale = 1;
 
 function makeRow(columns) {
     let row = {};
     for (const [k, f] of Object.entries(columns)) {
-        row[k] = f();
+        row[k] = f(row);
     }
     return row;
 }
@@ -68,6 +69,27 @@ function writeCSV(spec) {
     }
 }
 
+function makeBiased(gen, getKey) {
+    const poolByKey = new Map();
+    return (x) => {
+        const k = getKey?.(x);
+        let pool = poolByKey.get(k);
+        if (pool === undefined) {
+            pool = [];
+            poolByKey.set(k, pool);
+        }
+
+        let v;
+        if (pool.length === 0 || Math.random() < 0.1) {
+            v = gen();
+        } else {
+            v = sample(pool);
+        }
+        pool.push(v);
+        return v;
+    };
+}
+
 const companySpec = {
     name: "companies",
     numRows: 50_000,
@@ -91,11 +113,18 @@ const peopleSpec = {
     numRows: 200_000,
     columns: {
         Name: () => faker.name.fullName(),
-        Title: () => faker.name.jobTitle(),
+        CompanyID: () => fromColumn(companySpec, "ID"),
+        Title: makeBiased(
+            () => `${faker.name.jobArea()} ${faker.name.jobType()}`,
+            (r) => r.CompanyID
+        ),
+        Salary: makeBiased(
+            () => faker.finance.amount(30_000, 200_000, 0),
+            (r) => r.Title
+        ),
         Email: () => faker.internet.email(),
         Phone: () => faker.phone.number(),
         Photo: () => faker.image.avatar(),
-        CompanyID: () => fromColumn(companySpec, "ID"),
     },
 };
 
@@ -104,10 +133,13 @@ const productSpec = {
     numRows: 1_000_000,
     columns: {
         Name: () => faker.commerce.productName(),
-        Material: () => faker.commerce.productMaterial(),
-        Category: () => faker.commerce.department(),
+        Material: makeBiased(() => faker.commerce.productMaterial()),
+        Category: makeBiased(() => faker.commerce.department()),
         Image: () => faker.image.technics(undefined, undefined, true),
-        Price: () => faker.commerce.price(),
+        Price: makeBiased(
+            () => faker.commerce.price(),
+            (r) => `${r.Category}-${r.Material}`
+        ),
         ID: () => `prd-${faker.random.alpha(10)}`,
         CompanyID: () => fromColumn(companySpec, "ID"),
     },
@@ -124,10 +156,23 @@ const ordersSpec = {
     },
 };
 
-function main() {
+function mainCommercial() {
     for (const spec of [companySpec, peopleSpec, productSpec, ordersSpec]) {
         writeCSV(spec);
     }
 }
 
-main();
+function mainDummy() {
+    const numCols = 500;
+    const numRows = 20000;
+
+    const header = stringify(range(numCols).map((i) => `Col ${i} yo`));
+    let n = 0;
+    const rows = range(numRows).map(() =>
+        stringify(range(numCols).map(() => `${n++}`))
+    );
+
+    fs.writeFileSync("dummy.csv", [header, ...rows].join(""));
+}
+
+mainCommercial();
