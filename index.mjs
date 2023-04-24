@@ -92,7 +92,7 @@ function makeBiased(gen, getKey) {
 
 const companySpec = {
     name: "companies",
-    numRows: 50_000,
+    numRows: 5_000,
     columns: {
         Name: () => faker.company.name(),
         Mission: () => faker.company.catchPhrase(),
@@ -110,10 +110,11 @@ const companySpec = {
 
 const peopleSpec = {
     name: "people",
-    numRows: 200_000,
+    numRows: 1_000,
     columns: {
+        ID: () => `per-${faker.random.alpha(10)}`,
         Name: () => faker.name.fullName(),
-        CompanyID: () => fromColumn(companySpec, "ID"),
+        // CompanyID: () => fromColumn(companySpec, "ID"),
         Title: makeBiased(
             () => `${faker.name.jobArea()} ${faker.name.jobType()}`,
             (r) => r.CompanyID
@@ -130,7 +131,7 @@ const peopleSpec = {
 
 const productSpec = {
     name: "products",
-    numRows: 1_000_000,
+    numRows: 10_000,
     columns: {
         Name: () => faker.commerce.productName(),
         Material: makeBiased(() => faker.commerce.productMaterial()),
@@ -141,7 +142,20 @@ const productSpec = {
             (r) => `${r.Category}-${r.Material}`
         ),
         ID: () => `prd-${faker.random.alpha(10)}`,
+        // CompanyID: () => fromColumn(companySpec, "ID"),
+    },
+};
+
+const salesSpec = {
+    name: "sales",
+    numRows: 100_000,
+    columns: {
+        ID: () => `sal-${faker.random.alpha(10)}`,
+        ProductID: () => fromColumn(productSpec, "ID"),
         CompanyID: () => fromColumn(companySpec, "ID"),
+        PersonID: () => fromColumn(peopleSpec, "ID"),
+        Quantity: () => faker.datatype.number({ min: 1, max: 99 }),
+        Date: () => faker.date.past(3).toISOString(),
     },
 };
 
@@ -156,8 +170,49 @@ const ordersSpec = {
     },
 };
 
+function mainSales() {
+    for (const spec of [companySpec, peopleSpec, productSpec, salesSpec]) {
+        writeCSV(spec);
+    }
+}
+
 function mainCommercial() {
     for (const spec of [companySpec, peopleSpec, productSpec, ordersSpec]) {
+        writeCSV(spec);
+    }
+}
+
+const salespeopleSpec = {
+    name: "salespeople",
+    numRows: 1_000,
+    columns: {
+        Name: () => faker.name.fullName(),
+        Email: () => faker.internet.email(),
+        Phone: () => faker.phone.number(),
+        Photo: () => faker.image.avatar(),
+        Salary: makeBiased(() => faker.finance.amount(30_000, 200_000, 0)),
+        Sales: makeBiased(() => faker.finance.amount(10_000, 1_000_000, 0)),
+    },
+};
+
+function makeSales() {
+    for (const spec of [salespeopleSpec]) {
+        writeCSV(spec);
+    }
+}
+
+const studentsSpec = {
+    name: "students",
+    numRows: 100,
+    columns: {
+        id: () => faker.random.alphaNumeric(6),
+        name: () => faker.name.fullName(),
+        avg_score: () => faker.datatype.number({ min: 1, max: 10 }),
+    },
+};
+
+function makeStudents() {
+    for (const spec of [studentsSpec]) {
         writeCSV(spec);
     }
 }
@@ -175,4 +230,4 @@ function mainDummy() {
     fs.writeFileSync("dummy.csv", [header, ...rows].join(""));
 }
 
-mainCommercial();
+mainSales();
