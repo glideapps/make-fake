@@ -57,6 +57,13 @@ function fromColumn(spec, columnName) {
     return sample(values);
 }
 
+function convertValue(x) {
+    if (x instanceof Date) {
+        return x.toISOString();
+    }
+    return x;
+}
+
 function writeCSV(spec) {
     const filename = `${spec.name}.csv`;
 
@@ -64,7 +71,9 @@ function writeCSV(spec) {
     fs.writeFileSync(filename, header);
 
     for (const rows of chunk(getRows(spec), 100_000)) {
-        const lines = rows.map((r) => stringify(Object.values(r)));
+        const lines = rows.map((r) =>
+            stringify(Object.values(r).map(convertValue))
+        );
         fs.appendFileSync(filename, lines.join(""));
     }
 }
@@ -90,18 +99,20 @@ function makeBiased(gen, getKey) {
     };
 }
 
+function makeAddress() {
+    const state = faker.address.stateAbbr();
+    return `${faker.address.streetAddress()}, ${state} ${faker.address.zipCodeByState(
+        state
+    )}`;
+}
+
 const companySpec = {
     name: "companies",
-    numRows: 5_000,
+    numRows: 50_000,
     columns: {
         Name: () => faker.company.name(),
         Mission: () => faker.company.catchPhrase(),
-        Address: () => {
-            const state = faker.address.stateAbbr();
-            return `${faker.address.streetAddress()}, ${state} ${faker.address.zipCodeByState(
-                state
-            )}`;
-        },
+        Address: makeAddress,
         Image: () => faker.image.business(undefined, undefined, true),
         URL: () => faker.internet.url(),
         ID: () => `cmp-${faker.random.alpha(10)}`,
@@ -110,11 +121,11 @@ const companySpec = {
 
 const peopleSpec = {
     name: "people",
-    numRows: 1_000,
+    numRows: 200_000,
     columns: {
         ID: () => `per-${faker.random.alpha(10)}`,
         Name: () => faker.name.fullName(),
-        // CompanyID: () => fromColumn(companySpec, "ID"),
+        CompanyID: () => fromColumn(companySpec, "ID"),
         Title: makeBiased(
             () => `${faker.name.jobArea()} ${faker.name.jobType()}`,
             (r) => r.CompanyID
@@ -131,7 +142,7 @@ const peopleSpec = {
 
 const productSpec = {
     name: "products",
-    numRows: 10_000,
+    numRows: 1_000_000,
     columns: {
         Name: () => faker.commerce.productName(),
         Material: makeBiased(() => faker.commerce.productMaterial()),
@@ -142,7 +153,7 @@ const productSpec = {
             (r) => `${r.Category}-${r.Material}`
         ),
         ID: () => `prd-${faker.random.alpha(10)}`,
-        // CompanyID: () => fromColumn(companySpec, "ID"),
+        CompanyID: () => fromColumn(companySpec, "ID"),
     },
 };
 
@@ -217,6 +228,44 @@ function makeStudents() {
     }
 }
 
+const periodHalfLength = 100 * 365 * 24 * 60 * 60 * 1000; // 100 years
+const periodStart = new Date(Date.now() - periodHalfLength);
+const periodEnd = new Date(Date.now() + periodHalfLength);
+
+const eventLengths = [
+    30 * 60 * 1000, // half an hour
+    60 * 60 * 1000, // one hour
+    2 * 60 * 60 * 1000, // two hours
+    6 * 60 * 60 * 1000, // six hours
+    24 * 60 * 60 * 1000, // one day
+    2 * 24 * 60 * 60 * 1000, // two days
+    7 * 24 * 60 * 60 * 1000, // one week
+    2 * 7 * 24 * 60 * 60 * 1000, // two weeks
+    30 * 24 * 60 * 60 * 1000, // one month
+    2 * 30 * 24 * 60 * 60 * 1000, // two months
+];
+
+const eventsSpec = {
+    name: "events",
+    numRows: 100_000,
+    columns: {
+        Name: () => faker.company.catchPhrase(),
+        Description: () => faker.company.catchPhrase(),
+        Category: () => faker.commerce.department(),
+        Location: makeAddress,
+        Image: () => faker.image.business(undefined, undefined, true),
+        Start: () => faker.date.between(periodStart, periodEnd),
+        End: (r) =>
+            sample(["", new Date(r.Start.getTime() + sample(eventLengths))]),
+    },
+};
+
+function makeEvents() {
+    for (const spec of [eventsSpec]) {
+        writeCSV(spec);
+    }
+}
+
 function mainDummy() {
     const numCols = 500;
     const numRows = 20000;
@@ -230,4 +279,4 @@ function mainDummy() {
     fs.writeFileSync("dummy.csv", [header, ...rows].join(""));
 }
 
-mainSales();
+mainCommercial();
