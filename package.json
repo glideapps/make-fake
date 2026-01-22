@@ -12,6 +12,6 @@
     "dependencies": {
         "@faker-js/faker": "^7.6.0",
         "csv-string": "^4.1.1",
-        "lodash": "^4.17.21"
+        "lodash": "^4.17.23"
     }
 }
